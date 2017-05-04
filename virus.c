@@ -36,7 +36,7 @@ int PACKET_BUFFER_IDX = 0;
 /* Mutex for both the buffer and its counter. */
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-char* DROPBOX_ACCESS_TOKEN = "sCz0tr6wX7AAAAAAAAAAz8NRtxaNfz9s4Rt8KVM3LCGsscnA8AcaHy_4VbEV0Chh";
+char* DROPBOX_ACCESS_TOKEN = "";
 
 /* Definition for the callback function when a packet is captured */
 void packet_callback(u_char* args, const struct pcap_pkthdr* header, const u_char* packet);
