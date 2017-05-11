@@ -16,5 +16,13 @@ In order to simulate how this malware could be placed on a victim's machine, Met
 
 5. For demonstration purposes, access the victim's machine and execute the exploit. You may have to change permissions on the exploit before executing. On the attacking machine, a meterpreter shell should have started. Upload the malware executable onto the victim's machine using "upload a.out". Once the file is uploaded, start a bash shell on the victim machine with the command "shell". 
 
-6. Now that you have a shell on the victim's machine, you can execute the malware. You may have to change permissions on the malware before executing. Once you execute the malware, watch as packet data starts flowing into your Dropbox folder associated with the project.
+6. Now that you have a shell on the victim's machine, you can execute the malware. You may have to change permissions on the malware before executing. Once you execute the malware, watch as packet data starts flowing into your Dropbox folder associated with the project. See the next section for more info about the capabilities of the malware
+
+###virus.c
+
+This packet capture malware extracts the source and destination IP's for a packet, as well as the hexadecimal version of the payload and the payload len. This information for each packet is neatly formatted into a file. 
+
+There is a bug when printing the hexadecimal payload. For some reason, the output is gibberish rather than the expected ASCII. Lots of debugging was done but the problem could not be fixed in time. However, the garbage output is still written to file to show that the payload was extracted. 
+
+When a file is written to Dropbox, it is given a filename of DATE-TIME-VICTIM_IP.mypcap
 
