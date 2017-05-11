@@ -18,7 +18,7 @@ In order to simulate how this malware could be placed on a victim's machine, Met
 
 6. Now that you have a shell on the victim's machine, you can execute the malware. You may have to change permissions on the malware before executing. Once you execute the malware, watch as packet data starts flowing into your Dropbox folder associated with the project. See the next section for more info about the capabilities of the malware
 
-###virus.c
+### virus.c
 
 This packet capture malware extracts the source and destination IP's for a packet, as well as the hexadecimal version of the payload and the payload len. This information for each packet is neatly formatted into a file. 
 
