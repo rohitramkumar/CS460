@@ -14,7 +14,7 @@ In order to simulate how this malware could be placed on a victim's machine, Met
 
 4. You must figure out a way to place the binary exploit onto the victim's machine. This project does not implement any Trojan Horse technique on it's own, so any method of placing the exploit on the victim's machine is fine. It is advisable to place the file under the user's directory of which you want to attack.
 
-5. For demonstration purposes, access the victim's machine and execute the exploit. On the attacking machine, a meterpreter shell should have started. Upload the malware executable onto the victim's machine using "upload [FILENAME]". Once the file is uploaded, start a bash shell on the victim machine with the command "
+5. For demonstration purposes, access the victim's machine and execute the exploit. You may have to change permissions on the exploit before executing. On the attacking machine, a meterpreter shell should have started. Upload the malware executable onto the victim's machine using "upload a.out". Once the file is uploaded, start a bash shell on the victim machine with the command "shell". 
 
-6. Once you execute the malware, watch as packet data starts flowing into your Dropbox folder associated with the project.
+6. Now that you have a shell on the victim's machine, you can execute the malware. You may have to change permissions on the malware before executing. Once you execute the malware, watch as packet data starts flowing into your Dropbox folder associated with the project.
 
