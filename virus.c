@@ -25,10 +25,10 @@ typedef struct {
 int DATA_LINK_HDR_LEN = 14;
 
 /* Number of packet_info packets that our buffer holds */
-int PACKET_BUFFER_SIZE = 10;
+int PACKET_BUFFER_SIZE = 1000;
 
 /* Buffer to hold a certain amount of packet_info structs.  */
-packet_info* PACKET_BUFFER[10];
+packet_info* PACKET_BUFFER[1000];
 
 /* Counter for the above buffer. */
 int PACKET_BUFFER_IDX = 0;
@@ -186,15 +186,15 @@ void process_buffer() {
       }
       fprintf(packet_file, "\n");
     } else {
-      fprintf(packet_file, "Payload len: %d\n", 0);  
+      fprintf(packet_file, "Payload len: %d\n", 0);
     }
     fprintf(packet_file, "=======================================\n");
     fflush(packet_file);
     free(info);
   }
   free(buffer);
-  //write_to_dropbox(filename);
-  //remove(filename);
+  write_to_dropbox(filename);
+  remove(filename);
 }
 
 char* get_system_time(char* buffer) {
